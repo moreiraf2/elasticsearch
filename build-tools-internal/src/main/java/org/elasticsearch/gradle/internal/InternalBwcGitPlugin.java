@@ -88,7 +88,7 @@ public class InternalBwcGitPlugin implements Plugin<Project> {
             String remoteRepo = remote.get();
             // for testing only we can override the base remote url
             String remoteRepoUrl = providerFactory.systemProperty("testRemoteRepo")
-                .getOrElse("https://github.com/" + remoteRepo + "/elasticsearch.git");
+                .getOrElse("https://github.com/" + remoteRepo + "/" + project.getRootProject().getName());
             addRemote.commandLine("git", "remote", "add", remoteRepo, remoteRepoUrl);
         });
 
@@ -119,13 +119,14 @@ public class InternalBwcGitPlugin implements Plugin<Project> {
                     String bwcBranch = gitExtension.getBwcBranch().get();
                     final String refspec = providerFactory.systemProperty("bwc.refspec." + bwcBranch)
                         .orElse(providerFactory.systemProperty("tests.bwc.refspec." + bwcBranch))
+                        .orElse(task.getExtensions().getExtraProperties().get("checkoutHash").toString())
                         .getOrElse(remote.get() + "/" + bwcBranch);
 
                     String effectiveRefSpec = maybeAlignedRefSpec(task.getLogger(), refspec);
                     task.getLogger().lifecycle("Performing checkout of {}...", refspec);
                     LoggedExec.exec(execOperations, spec -> {
                         spec.workingDir(checkoutDir);
-                        spec.commandLine("git", "checkout", effectiveRefSpec);
+                        spec.commandLine("git", "checkout", "--recurse-submodules", effectiveRefSpec);
                     });
 
                     String checkoutHash = GitInfo.gitInfo(checkoutDir).getRevision();
