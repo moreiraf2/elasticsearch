@@ -29,6 +29,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.AuthCache;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.entity.GzipCompressingEntity;
+import org.apache.http.client.entity.GzipDecompressingEntity;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpOptions;
@@ -47,6 +48,7 @@ import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.nio.client.methods.HttpAsyncMethods;
 import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.nio.protocol.HttpAsyncResponseConsumer;
+import org.apache.http.protocol.HTTP;
 import org.elasticsearch.client.DeadHostState.TimeSupplier;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -547,6 +549,18 @@ public class RestClient implements Closeable {
                 try {
                     RequestLogger.logResponse(logger, request, node.getHost(), httpResponse);
                     int statusCode = httpResponse.getStatusLine().getStatusCode();
+
+                    HttpEntity entity = httpResponse.getEntity();
+                    if (entity != null) {
+                        Header header = entity.getContentEncoding();
+                        if (header != null && "gzip".equals(header.getValue())) {
+                            // Decompress and cleanup response headers
+                            httpResponse.setEntity(new GzipDecompressingEntity(entity));
+                            httpResponse.removeHeaders(HTTP.CONTENT_ENCODING);
+                            httpResponse.removeHeaders(HTTP.CONTENT_LEN);
+                        }
+                    }
+
                     Response response = new Response(request.getRequestLine(), node.getHost(), httpResponse);
                     if (isSuccessfulResponse(statusCode) || ignoreErrorCodes.contains(response.getStatusLine().getStatusCode())) {
                         onResponse(node);
