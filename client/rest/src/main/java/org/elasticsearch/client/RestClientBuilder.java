@@ -209,6 +209,7 @@ public final class RestClientBuilder {
                 return createHttpClient();
             }
         });
+        // We intentionally forced encoding to minimize changes to the common code base until we move to ES 7.X
         RestClient restClient = new RestClient(httpClient, maxRetryTimeout, defaultHeaders, nodes,
                 pathPrefix, failureListener, nodeSelector, strictDeprecationMode, true);
         httpClient.start();
